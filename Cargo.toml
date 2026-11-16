@@ -1,0 +1,23 @@
+[workspace]
+members = ["crates/core", "crates/native", "crates/wasm"]
+default-members = ["crates/native"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/Mattbusel/duckdb-tensorust"
+authors = ["Matthew Busel <mattbusel@tensorust.com>"]
+
+[workspace.dependencies]
+duckdb-neo = { version = "=0.20000.2", features = ["build-extension"] }
+serde_json = "1"
+csv = "1.3"
+ureq = { version = "2", default-features = false, features = ["tls"] }
+tensorust_core = { path = "crates/core" }
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1

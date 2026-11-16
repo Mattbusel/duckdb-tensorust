@@ -1,0 +1,113 @@
+# name: test/sql/tensorust.test
+# description: Tensorust Data API table functions (free preview, no key)
+# group: [tensorust]
+
+# The functions must not exist before the extension is loaded.
+statement error
+SELECT * FROM tensorust_q3_cuts();
+----
+Catalog Error
+
+require tensorust
+
+# Every table function registers.
+query I
+SELECT count(*) FROM duckdb_functions() WHERE function_name LIKE 'tensorust_%';
+----
+6
+
+# The key setting exists, defaults to empty, and rejects something that is not a key.
+query I
+SELECT current_setting('tensorust_api_key') = '';
+----
+true
+
+statement error
+SET tensorust_api_key = 'not-a-key';
+----
+tdk_
+
+# Columns are typed, not all VARCHAR.
+query II
+SELECT column_name, column_type
+FROM (DESCRIBE SELECT * FROM tensorust_lender_marks('Pluralsight'))
+WHERE column_name IN ('mark', 'maturity', 'as_of')
+ORDER BY column_name;
+----
+as_of	DATE
+mark	DOUBLE
+maturity	DATE
+
+# A borrower's lenders, free preview.
+query II
+SELECT count(*) > 0, min(access) FROM tensorust_lender_marks('Pluralsight');
+----
+true	preview
+
+# A mark is a share of par.
+query I
+SELECT bool_and(mark BETWEEN 0 AND 2) FROM tensorust_lender_marks('Pluralsight');
+----
+true
+
+# An unknown borrower is an error, not an empty success.
+statement error
+SELECT * FROM tensorust_lender_marks('zzqx no such borrower zzqx');
+----
+not found
+
+# Loans lenders disagree on: the free top 10, widest gap first.
+query II
+SELECT count(*) BETWEEN 1 AND 10, bool_and(gap_points >= 10) FROM tensorust_credit_disagreements();
+----
+true	true
+
+# Q3 2026 cuts are markdowns.
+query II
+SELECT count(*) > 0, bool_and(change_points < 0) FROM tensorust_q3_cuts();
+----
+true	true
+
+query I
+SELECT bool_and(sep30_mark < jun30_mark) FROM tensorust_q3_cuts();
+----
+true
+
+# Banned-vendor exposure for one institution.
+query II
+SELECT count(*) > 0, bool_and(fy25_obligations >= 0) FROM tensorust_exposure('Stanford University');
+----
+true	true
+
+# The catalog lists every dataset.
+query I
+SELECT count(*) > 100 FROM tensorust_datasets();
+----
+true
+
+query I
+SELECT count(DISTINCT slug) = count(*) FROM tensorust_datasets();
+----
+true
+
+# A search narrows it.
+query I
+SELECT count(*) BETWEEN 1 AND (SELECT count(*) - 1 FROM tensorust_datasets()) FROM tensorust_datasets(search := 'BDC');
+----
+true
+
+# A free sample comes back typed, with at most 25 rows.
+query I
+SELECT count(*) BETWEEN 1 AND 25 FROM tensorust_sample('bdc-nonaccrual-watch');
+----
+true
+
+query I
+SELECT column_type FROM (DESCRIBE SELECT mark FROM tensorust_sample('bdc-nonaccrual-watch'));
+----
+DOUBLE
+
+statement error
+SELECT * FROM tensorust_sample('no-such-dataset-zzqx');
+----
+no-such-dataset-zzqx

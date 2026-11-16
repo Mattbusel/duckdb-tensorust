@@ -1,0 +1,15 @@
+[package]
+name = "tensorust_wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+name = "tensorust"
+crate-type = ["staticlib"]
+
+[dependencies]
+duckdb-neo.workspace = true
+tensorust_core.workspace = true
